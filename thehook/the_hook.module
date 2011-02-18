@@ -286,11 +286,26 @@ function evaluation_list() {
 
     if ($get_status != "NULL") {
       if (user_access('create homework content')) {
-        $teacher_opt =  " | " .l(t('Re Inspect'), 'evaluation/re_inspect/'. $node->nid).
+
+        if (!is_ss_engine_processing($node->nid)) {
+          $re_inspect_str = " | " .l(t('Re Inspect'), 'evaluation/re_inspect/'. $node->nid);
+        }
+        else {
+          $re_inspect_str = " | ". t('Re Inspect');
+        }
+
+        $teacher_opt =  $re_inspect_str.
                         " | " .l(t('Evaluate Options'), 'evaluation/options/'.$node->nid) .
                         " | ". l(t('Delete'), 'evaluation/delete/'.$node->nid)  ;
       }
-      $tmp[] = l(t('Result'), 'evaluation/result/'.$node->nid). $teacher_opt . "";
+
+      if (is_ss_engine_done($node->nid)) {
+        $tmp[] = l(t('Result'), 'evaluation/result/'.$node->nid). $teacher_opt . "";
+      }
+      else {
+        $tmp[] = t('Result'). $teacher_opt . "";
+      }
+
       $nid_list[] = $node->nid;
     }
     else {
