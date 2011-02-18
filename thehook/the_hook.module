@@ -341,9 +341,13 @@ function examine_homework($node) {
 }
 
 function create_inspection_file_list($nid) {
-  drupal_set_message("In FUnction", "warning");
-  $dir = opendir(file_create_path($nid));
+  drupal_set_message("In FUnction". variable_get('ss_inspection_bits_'. $nid, 'NULL'), "warning");
 
+  $ss = get_ss_convention();
+  $ss_file_list = $ss["file_list"];
+  $ss_hw_list = $ss["homework_list"];
+
+  $dir = opendir(file_create_path($nid));
   $student_files_path = '';
   $student_files_path .= $inspection_bits. "\n";
 
@@ -361,7 +365,6 @@ function create_inspection_file_list($nid) {
 }
 
 function inspection_condition_submit($form, &$form_state) {
-  $ss = get_ss_convention();
   $nid = arg(1);
 
   $serialize = serialize($form);
@@ -369,8 +372,6 @@ function inspection_condition_submit($form, &$form_state) {
   $algorithm_options = $form['algorithm']['options']['#options'];
   $inspection_bits = "";
 
-  $ss_file_list = $ss["file_list"];
-  $ss_hw_list = $ss["homework_list"];
 
   foreach ($form['structural']['options'] as $key => $option) {
     if (in_array($key, array_keys($structural_options))) {
