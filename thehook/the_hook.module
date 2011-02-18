@@ -667,7 +667,6 @@ function the_hook_init() {
 }
 
 function get_allow_extension() {
-  $allowed = array('c');
-
+  $allowed = array('c', 'cpp');
   return $allowed;
 }
