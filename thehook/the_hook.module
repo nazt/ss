@@ -32,6 +32,15 @@ function the_hook_menu() {
     'type' => MENU_CALLBACK,
   );
 
+  $items['evaluation/re_inspect/%'] = array(
+    'title' => t('Evaluation Re Inspect'),
+    'description' => t('re-inspect homework'),
+    'page callback' => 're_inspection',
+    'page arguments' => array(2),
+    'access callback' => 'examine_homework_access',
+    'type' => MENU_CALLBACK,
+  );
+
   $items['evaluation/options/%'] = array(
     'title' => t('Evaluation Options'),
     'description' => t('Evaluation Options'),
@@ -209,11 +218,22 @@ function is_ss_engine_processing($nid) {
 
   if (file_exists($file['processing_path'])) {
     if (file_exists($file['result_path'])) {
-      unlink($file['result_path']);
+      //unlink($file['result_path']);
     }
     $status = TRUE;
   }
 
+  return $status;
+}
+
+function is_ss_engine_have_result($nid) {
+  $file= get_convention_path($nid, get_ss_convention());
+
+  $status = FALSE;
+
+  if (file_exists($file['result_path'])) {
+    $status = TRUE;
+  }
   return $status;
 }
 
@@ -226,8 +246,6 @@ function is_ss_engine_done($nid) {
       is_ss_engine_processing($nid) == FALSE) {
     $status = TRUE;
   }
-
-
   return $status;
 }
 
@@ -251,7 +269,10 @@ function get_status_of_homework($nid) {
 
     $status;
 
-    if (is_ss_engine_processing($nid)) {
+    if (is_ss_engine_processing($nid) && is_ss_engine_have_result($nid)) {
+      $status = t('Writing Data');
+    }
+    else if (is_ss_engine_processing($nid)) {
       $status = t('Processing');
     }
     else if (is_ss_engine_done($nid)) {
@@ -336,14 +357,49 @@ function examine_homework($node) {
   drupal_set_breadcrumb($breadcrumb);
 
   $output = '<div class="inspecting-wrapper"><h2>' . t('Evaluation Options of '). $node->title . '</h2></div>';
-  $output.= drupal_get_form(inspection_condition);
+
+  // no condition
+  $exists_form = variable_get('hw_'. $node->nid, NULL);
+  if ($exists_form) {
+    $form_id = 'inspection_condition';
+    //$output .= drupal_render_form($form_id, unserialize($exists_form));
+    $output .= drupal_get_form(inspection_condition);
+  }
+  else {
+    $output .= drupal_get_form(inspection_condition);
+  }
   return $output;
 }
 
+function re_inspection($nid) {
+  $inspection_bits = variable_get('ss_inspection_bits_'. $nid, NULL);
+  if (!$inspection_bits) {
+    drupal_set_message('No bits', 'error');
+    drupal_goto('examine/'. $nid);
+  }
+  else {
+    $file = get_convention_path($nid, get_ss_convention());
+    if (file_exists($file['result_path'])) {
+      drupal_set_message(t('Re inspect from done.'), 'warning');
+      $handler = unlink($file['result_path']);
+      if ($handler) {
+        drupal_set_message($file['result_path'] .' '. t('has been deleted') );
+      }
+      else {
+        drupal_set_message(t('Can not delete').' '.$file['result_path'], 'error');
+      }
+    }
+    else {
+        drupal_set_message(t('Re inspect from waiting.'), 'warning');
+    }
+    drupal_set_message($inspection_bits);
+    create_inspection_file_list($nid);
+    drupal_goto('evaluation/list');
+  }
+  return ''. 're inspection '. $inspection_bits;
+}
 function create_inspection_file_list($nid) {
   $inspection_bits = variable_get('ss_inspection_bits_'. $nid, 'NULL');
-
-  drupal_set_message("In FUnction ". $inspection_bits, "warning");
 
   $ss = get_ss_convention();
   $ss_file_list = $ss["file_list"];
@@ -354,8 +410,10 @@ function create_inspection_file_list($nid) {
   $student_files_path .= $inspection_bits. "\n";
 
   while (($file = readdir($dir)) !== false) {
-    if ( $file != "." && $file != ".." && $file != $ss_file_list)  {
+    $file_ext = explode(".", $file);
+    if ( $file != "." && $file != ".." && in_array($file_ext[1], get_allow_extension()) )  {
       drupal_set_message("file: " . file_create_path($nid.'/'.$file) . "<br />");
+      drupal_set_message(print_r($file_ext, 1));
       $student_files_path .= file_create_path($nid.'/'.$file). "\n";
     }
   }
@@ -608,3 +666,8 @@ function the_hook_init() {
   }
 }
 
+function get_allow_extension() {
+  $allowed = array('c');
+
+  return $allowed;
+}
