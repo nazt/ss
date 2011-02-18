@@ -194,23 +194,77 @@ function get_ss_convention() {
 
 function get_convention_path($nid, $ss) {
   $convention_path = array( 'homework_list_path' => file_directory_path(). '/'. $ss['homework_list'],
-                            'result_path' => file_directory_path(). '/'. $node->nid. '/'. $ss['result'],
-                            'processing_path' => file_directory_path(). '/'. $node->nid. '/'. $ss['processing'],
-                            'file_list_path' => file_directory_path(). '/'. $node->nid. '/'. $ss['file_list'],
+                            'result_path' => file_directory_path(). '/'. $nid. '/'. $ss['result'],
+                            'processing_path' => file_directory_path(). '/'. $nid. '/'. $ss['processing'],
+                            'file_list_path' => file_directory_path(). '/'. $nid. '/'. $ss['file_list'],
                           );
 
   return $convention_path;
 }
 
 function is_ss_engine_processing($nid) {
+  $file= get_convention_path($nid, get_ss_convention());
+
+  $status = FALSE;
+
+  if (file_exists($file['processing_path'])) {
+    $status = TRUE;
+  }
+
+  return $status;
+}
+
+function is_ss_engine_done($nid) {
+  $file= get_convention_path($nid, get_ss_convention());
+
+  $status = FALSE;
+
+  if (file_exists($file['result_path']) && !file_exists($file['processing_path'])) {
+    $status = TRUE;
+  }
+
+  return $status;
+}
+
+function is_ss_engine_waiting($nid) {
+  $file= get_convention_path($nid, get_ss_convention());
+
+  $status = FALSE;
+
+  if (!file_exists($file['processing_path']) && !file_exists($file['result_path']) ) {
+    $status = TRUE;
+  }
+
+  return $status;
+
+}
+
+function get_status_of_homework($nid) {
+    $ss = get_ss_convention();
+    $cpath = get_convention_path($nid, $ss);
+
+    $status;
+
+    if (is_ss_engine_processing($nid)) {
+      $status = t('Processing');
+    }
+    else if (is_ss_engine_done($nid)) {
+      $status = t('Done');
+    }
+    else if (is_ss_engine_waiting($nid)) {
+      $status = t('Waiting');
+    }
+    else {
+      $status = t('Unknown');
+    }
+
+    return $status;
 
 }
 
 function evaluation_list() {
   $ss = get_ss_convention();
-  $ss_hw_list = $ss["homework_list"];
-  $ss_result = $ss["result"];
-  $ss_processing = $ss["processing"];
+  $cpath = get_convention_path($nid->nid, $ss);
 
   $qry = db_query('SELECT * FROM {node} n WHERE n.type = "homework"');
   $rows = array();
@@ -222,18 +276,7 @@ function evaluation_list() {
     $tmp = array($node->nid);
     $tmp[] = $node->title;
 
-    if (file_exists($ss_hw_list_path) && !file_exists($ispct_result_path)) {
-      $tmp[] = t('Processing');
-    }
-    else if (file_exists($ispct_result_path)) {
-      $tmp[] = t('Done');
-    }
-    else if (!file_exists($ss_processing_path)) {
-      $tmp[] = t('Waiting');
-    }
-    else {
-      $tmp[] = t('Unknown');
-    }
+    $tmp[] = get_status_of_homework($node->nid);
 
     if ($get_status != "NULL") {
       if (user_access('create homework content')) {
@@ -251,9 +294,8 @@ function evaluation_list() {
     }
     $rows[] = $tmp;
   }
-  //drupal_set_message(print_r($nid_list, 1));
-  $meta_assign_nid_path = file_directory_path(). '/'. $ss_hw_list;
-  _save_assignment_list($meta_assign_nid_path, $nid_list);
+
+  _save_assignment_list($cpath['homework_list'], $nid_list);
   return theme('table', $header, $rows);
 }
 
