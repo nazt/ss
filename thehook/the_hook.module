@@ -208,6 +208,9 @@ function is_ss_engine_processing($nid) {
   $status = FALSE;
 
   if (file_exists($file['processing_path'])) {
+    if (file_exists($file['result_path'])) {
+      unlink($file['result_path']);
+    }
     $status = TRUE;
   }
 
@@ -222,6 +225,7 @@ function is_ss_engine_done($nid) {
   if (file_exists($file['result_path']) && !file_exists($file['processing_path'])) {
     $status = TRUE;
   }
+
 
   return $status;
 }
@@ -579,4 +583,3 @@ function the_hook_init() {
     //drupal_goto('front_page', $query);
   }
 }
-
