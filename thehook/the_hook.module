@@ -1,0 +1,493 @@
+<?php
+//include(drupal_get_path('module', 'node'). '/node.pages.inc');
+module_load_include('inc', 'node', 'node.pages');
+/**
+  * Implementation of hook_menu().
+  */
+function the_hook_menu() {
+  $items['examine/%node'] = array(
+    'title' => t('Evaluate Homework Option'),
+    'description' => t('Evaluate homework description'),
+    'page callback' => 'examine_homework',
+    'page arguments' => array(1),
+    'access callback' => 'examine_homework_access',
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['evaluation/list'] = array(
+    'title' => t('Evaluation List'),
+    'description' => t('Evaluation List of homework'),
+    'page callback' => 'evaluation_list',
+    'page arguments' => array(1),
+    'access callback' => 'examine_homework_access',
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['evaluation/delete/%'] = array(
+    'title' => t('Evaluation Delete'),
+    'description' => t('Evaluation Delete'),
+    'page callback' => 'evaluation_delete',
+    'page arguments' => array(2),
+    'access callback' => 'examine_homework_access',
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['evaluation/options/%'] = array(
+    'title' => t('Evaluation Options'),
+    'description' => t('Evaluation Options'),
+    'page callback' => 'evaluation_options',
+    'page arguments' => array(2),
+    'access callback' => 'examine_homework_access',
+    'type' => MENU_CALLBACK,
+  );
+  
+  $items['evaluation/result/%'] = array(
+    'title' => t('Evaluation Result'),
+    'description' => t('Evaluation Result'),
+    'page callback' => 'evaluation_result',
+    'page arguments' => array(2),
+    'access callback' => 'examine_homework_access',
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['export/%/%'] = array(
+    'title' => t('Export '),
+    'description' => t('Export Evaluation data'),
+    'page callback' => 'evaluation_export',
+    'page arguments' => array(1, 2),
+    'access callback' => 'examine_homework_access',
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+function evaluation_export($nid, $format) {
+  $ret = sprintf("Exporting node %d in %s format.", $nid, $format);
+  $ret .= "<br><br><b><font color='red'>Under Contruction!</font></b>";
+  return t($ret); 
+}
+function evaluation_result($nid) {
+  $header= array(t('Similarity'), t('Total'), t('Histogram'));
+  $rows = array();
+  $tmp[] = "90% - 100%";
+  $tmp[] = "27";
+  $tmp[] = "##"; 
+  $rows[] = $tmp;
+
+  $tmp = array();
+  $tmp[] = "80% - 90%";
+  $tmp[] = "8";
+  $tmp[] = "#"; 
+  $rows[] = $tmp;
+
+  $tmp = array();
+  $tmp[] = "70% - 80%";
+  $tmp[] = "6";
+  $tmp[] = "#"; 
+  $rows[] = $tmp;
+
+  $tmp = array();
+  $tmp[] = "60% - 70%";
+  $tmp[] = "13";
+  $tmp[] = "#"; 
+  $rows[] = $tmp;
+
+  $tmp = array();
+  $tmp[] = "50% - 60%";
+  $tmp[] = "14";
+  $tmp[] = "#"; 
+  $rows[] = $tmp;
+
+  $tmp = array();
+  $tmp[] = "40% - 50%";
+  $tmp[] = "24";
+  $tmp[] = "##"; 
+  $rows[] = $tmp;
+
+  $tmp = array();
+  $tmp[] = "30% - 40%";
+  $tmp[] = "50";
+  $tmp[] = "########"; 
+  $rows[] = $tmp;
+
+  $tmp = array();
+  $tmp[] = "20% - 30%";
+  $tmp[] = "142";
+  $tmp[] = "###################"; 
+  $rows[] = $tmp;
+
+  $tmp = array();
+  $tmp[] = "10% - 20%";
+  $tmp[] = "207";
+  $tmp[] = "#############################"; 
+  $rows[] = $tmp;
+
+  $tmp = array();
+  $tmp[] = "0% - 10%";
+  $tmp[] = "685";
+  $tmp[] = "##############################################################"; 
+  $rows[] = $tmp;
+
+  $std = array(
+        array('x',  1,     2,       3,     4),
+        array('1', "-",   "33.3%", "66%", "10%"),
+        array('2', "10%", "-",     "80%", "12%"),
+        array('3', "10%", "67%",   "-",   "13%"),
+        array('4', "10%", "40%",   "10%", "-"),
+      );
+  
+  $ret = t('Summary')
+        .theme('table', $header, $rows)
+        .l(t('Export to CSV'), 'export/'.$nid.'/csv')
+        ."<br>"
+        ."<br>"
+        .t('Similarity percentage by student')
+        .theme('table', array(), $std)
+        .l(t('Export to CSV'), 'export/'.$nid.'/csv');
+  return $ret; 
+}
+function evaluation_options($nid) {
+  if (user_access('create homework content')) {
+     $detail = variable_get('hw_'.$nid, NULL);
+     if ($detail != NULL) {
+       $unserialized = unserialize($detail);
+       //drupal_set_message('<pre>'. print_r(unserialize($detail), 1) . '</pre>');
+     }
+  }
+  $form_id = 'inspection_condition';
+  $form = $unserialized;
+
+  unset($form['submit']);
+  $ret = drupal_render_form($form_id, $form);
+  return $ret;
+}
+
+function evaluation_delete($nid) {
+  if (user_access('create homework content')) {
+     $delete_path = file_directory_path(). '/' . arg(2) . '/'. 'meta.txt';
+     unlink($delete_path);
+     variable_set('hw_'.$nid, NULL);
+     drupal_set_message($nid. t('Deleted'));
+     drupal_goto('evaluation/list');
+  }
+  return '';
+}
+
+function the_hook_inspection_condition_alter(&$form, &$form_state) {
+  drupal_set_message("I DO HOOK");
+}
+
+function evaluation_list() {
+  $qry = db_query('SELECT * FROM {node} n WHERE n.type = "homework"');
+  $rows = array();
+  $header= array(t('Id'), t('Title'), t('Status'), t('Operation'));
+  $nid_list = array();
+  while ($node = db_fetch_object($qry)) {
+    $get_status = variable_get('hw_'. $node->nid, "NULL");
+    $tmp = array($node->nid);
+    $tmp[] = $node->title;
+    $path = file_directory_path(). '/'. $node->nid. '/meta.txt';
+    if (file_exists($path)) {
+      $tmp[] = 'Processing';
+    }
+    else {
+      $tmp[] = '-';
+    }
+
+    if ($get_status != "NULL") {
+      if (user_access('create homework content')) {
+        $teacher_opt =   " | ". l(t('Delete'), 'evaluation/delete/'.$node->nid) . " | " .l(t('Evaluate Options'), 'evaluation/options/'.$node->nid) ;
+      }
+      $tmp[] = l(t('Result'), 'evaluation/result/'.$node->nid). $teacher_opt . ""; 
+      $nid_list[] = $node->nid;
+    }
+    else {
+     //$tmp[] = 'null';
+      drupal_set_message($node->nid);
+     continue;
+    }
+    $rows[] = $tmp;
+  } 
+  //drupal_set_message(print_r($nid_list, 1));
+  $meta_assign_nid_path = file_directory_path(). '/sourcesieve_meta.txt';
+  _save_assignment_list($meta_assign_nid_path, $nid_list);
+  return theme('table', $header, $rows);
+}
+
+function _save_assignment_list($path, $nid_list) {
+  $to_save = '';
+  foreach ($nid_list as $nid) {
+    $to_save .= $nid. "\n";
+  }
+  return file_save_data($to_save, $path, FILE_EXISTS_REPLACE); 
+}
+/**
+  *  Return Evaluation form's Options (generated)
+  */
+function examine_homework($node) {
+  $breadcrumb = drupal_get_breadcrumb();
+  $breadcrumb[] = l(t('Evaluate'), 'list_of_homeworks');
+  $breadcrumb[] = l(drupal_get_title(), 'examine/'.$node->nid ); // Link to current URL
+  drupal_set_breadcrumb($breadcrumb);
+
+  $output = '<div class="inspecting-wrapper"><h2>' . t('Evaluation Options of '). $node->title . '</h2></div>';
+  $output.= drupal_get_form(inspection_condition);
+  return $output;
+}
+
+function inspection_condition_submit($form, &$form_state) {
+  $serialize = serialize($form);
+
+  $structural_options = $form['structural']['options']['#options'];
+  $algorithm_options = $form['algorithm']['options']['#options'];
+  $inspection_bits = "";
+
+  foreach ($form['structural']['options'] as $key => $option) {
+    if (in_array($key, array_keys($structural_options))) {
+      $bit=  ($option['#value']) ? '1': '0'; 
+      $inspection_bits .= $bit;
+    } 
+  }
+
+  foreach ($form['algorithm']['options'] as $key => $option) {
+    if (in_array($key, array_keys($algorithm_options))) {
+      $bit=  ($option['#value']) ? '1': '0'; 
+      $inspection_bits .= $bit;
+    } 
+  }
+
+  $dir = opendir(file_create_path(arg(1)));
+  
+
+  $student_files = ''; 
+  $student_files .= $inspection_bits. "\n";
+
+  //List files in images directory
+  while (($file = readdir($dir)) !== false) {
+    if ( $file != "." && $file != ".." && $file != "meta.txt")  {  
+      drupal_set_message("filename: " . file_create_path(arg(1).'/'.$file) . "<br />");
+      $student_files .= file_create_path(arg(1).'/'.$file). "\n";
+    }
+  }
+
+  closedir($dir);
+
+  $saved = file_save_data($student_files, arg(1).'/meta.txt', FILE_EXISTS_REPLACE); 
+  variable_set('hw_'. arg(1), $serialize);
+  drupal_goto('evaluation/list');
+  return '';
+}
+/**
+  *  implementation of evaluation form using drupal form api 
+  */
+function inspection_condition($form_state) {
+  $form['structural'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Structural Similarity'),
+    '#tree' => TRUE,
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+
+  $form['structural']['options'] = array(
+    '#type' => 'checkboxes', 
+    '#title' => t('Options'), 
+    '#options' => array( 
+      'syntax_sim_wo_var_name' => t('Check syntax similarities regardless of variable name.'), 
+      'implicit_cast_data_type' => t('Check Implicit casting data types.'), 
+      'condition_similarity' => t('Conditional statements (if and switch) will be considered to be similar.'), 
+      'iteration_structure' => t('Loops (for, while, and do ... while) will be considered to be similar.'), 
+      'ignore_print' => t('Check for similarities regardless of the output from I/O function.'), 
+      'ignore_include' => t('Check for similarities regardless of the order of the #include directive.'), 
+      'ignore_func_declaration' => t('Check for similarities regardless of the order of the declaration of functions.'), 
+    ),
+    '#description' => t('Sieve engine will use conditions above to compute similarity.'),
+  );
+
+  $form['algorithm'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Algorithm Similarity'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+
+  $form['algorithm']['options'] = array(
+    '#type' => 'checkboxes', 
+    '#title' => t('Options'), 
+    '#options' => array( 
+      'looping_condition' => t('Check for similarities between the looping before condition and looping after condition.'), 
+      'looping_direction' => t('Check for similarities of the use of ascending and descending counter.'), 
+    ),
+    '#description' => t('Sieve engine will use conditions above to compute similarity.'),
+  );
+ $form['submit'] = array('#type' => 'submit', '#value' => t('Inspect'));
+ //$form['#submit'][] = 'system_settings_form_submit';
+//  $form['#theme'] = 'system_settings_form'
+ 
+ return $form;
+}
+
+/**
+  *  Menu access callback 
+  */
+function examine_homework_access() {
+  return TRUE;
+}
+
+/**
+  *  Implementation of hook_views_pre_render
+  */
+function the_hook_views_pre_render(&$view) {
+  switch($view->name) {
+    case 'file_in_hw':
+      if(arg(2) == 'list') {
+        $php_code = "<?php echo l(t('Inspect!'), 'examine/'. arg(1)); ?>";
+        $view->display_handler->set_option('header', "<div class='inspect-homework-views margin-bottom-10'>$php_code</div>");
+        $view->display_handler->set_option('header_format', '3');
+        $view->display_handler->set_option('header_empty', 0);
+      }
+     break;
+    case 'student_dl_homework':
+      global $user;
+
+      if(!arg(1)) {
+        drupal_goto('student_download_homework/'. $user->uid);
+      }
+
+      if(!user_access('create homework content') && (arg(1) != $user->uid) ) {
+        drupal_access_denied();
+      }
+     break;
+  }
+}
+
+/**
+  *  Implementation of hook_form_alter
+  */
+function the_hook_form_alter(&$form, &$form_state, $form_id) {
+  global $user;
+  switch($form_id) {
+    case 'comment_form': 
+      $form['comment_filter']['comment']['#required'] = 0;
+      $form['attachments']['#collapsed'] = TRUE;
+      break;
+    case 'submission_node_form':
+      profile_load_profile($user);
+      $form['attachments']['#collapsed'] = FALSE;
+      $form['attachments']['#required'] = TRUE;
+      if(arg(1) == 'add' || arg(2) == 'edit') {
+        $stu_id = $user->profile_student_id;
+        $form['title']['#default_value'] = $stu_id? $stu_id : 'undefined';
+        $form['title']['#disabled'] = TRUE;
+      }
+      $form['title']['#required'] = FALSE;
+      $form['body_field']['body']['#rows'] = 3;
+      $form['body_field']['body']['#title'] = t("Notice");
+    break;
+    case 'homework_node_form':
+      $form['language']['#type'] = 'hidden';
+    break;
+
+    case 'inspection_condition':
+    break;
+  }
+}
+
+/**
+  *  Implementation of hook_link_alter
+  */
+function the_hook_link_alter(&$links, $node, $comment=NULL) {
+  if($node->type=="homework") {
+    global $user;
+    $u = user_load(array('uid' => $comment->uid));
+    profile_load_profile($u);
+    if($u->profile_student_id != "-") {
+      $tmp_name = $comment->name;
+      $comment->name = $u->profile_student_id;
+      $comment->name .= " ($tmp_name)";
+    }
+
+    if(!$comment->cid) {
+      if(user_access('create homework content')) {
+        $links['list_students'] =  array(
+                            'title' => t('Submitted Students'),
+                            'href' => 'hwfiles/'. $node->nid. '/list',
+                          );
+      }
+
+      $fetched = submitted_count($node->nid, $user->uid);
+      if($fetched->count !== NULL) {
+        $links['my_homework'] =  array(
+                            'title' => t('My Homework'),
+                            'href' => 'node/'. $fetched->nid,
+                            );
+      }
+    }
+  }
+}
+
+/**
+  *  Query number of homework which submitted.
+  */
+function submitted_count($nid, $uid) {
+  $qry = "SELECT COUNT(node.nid) as count, node.nid AS nid, users.uid AS users_uid, node.language AS node_language, node_data_field_assignment.field_assignment_nid AS node_data_field_assignment_field_assignment_nid, node.type AS node_type, node.vid AS node_vid FROM sieve_node node  INNER JOIN sieve_users users ON node.uid = users.uid LEFT JOIN sieve_content_type_submission node_data_field_assignment ON node.vid = node_data_field_assignment.vid WHERE node_data_field_assignment.field_assignment_nid=%d AND users.uid =%d GROUP BY(users.uid) ORDER BY users_uid ASC ";
+  $db_qry = db_query($qry, $nid, $uid);
+  $fetched = db_fetch_object($db_qry);
+  return $fetched;
+}
+
+/**
+  *  Implementation of hook_nodeapi
+  */
+function the_hook_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  global $user;
+  switch($node->type) {
+    case "submission":
+      profile_load_profile($user); 
+      if($op == "load") {
+        //drupal_set_message('<pre> UID = '. print_r($node->uid, 1) . '</pre>');
+        //drupal_set_message('<pre> CUID = '. print_r($user->uid, 1) . '</pre>');
+        if( !('create homework content')  && $node->uid != $user->uid) {
+          drupal_set_message(t('Viewing other submission'), 'error'); 
+          //drupal_access_denied() ; 
+          //exit();
+        }
+      }
+
+      if($op == "presave" && $user->profile_student_id) {
+        $node->title = $user->profile_student_id;
+      }
+      else if(!$user->profile_student_id && ($op == "presave" || $op == "prepare") ) {
+        drupal_set_message(t('undefined student id'), 'warning');
+        $node->title = 'undefined';
+      }
+      else if($op == "prepare") {
+        $fetched = submitted_count(arg(3), $user->uid);
+        if($fetched->count!==NULL) {
+          drupal_set_message(t('Already submitted, Edit instead'), 'warning');
+          unset($_REQUEST['destination']);
+          $next = 'node/'.$fetched->nid.'/edit';
+          drupal_goto($next);
+          exit(0);
+        }
+      }
+      break;
+    case "homework":
+      if(drupal_is_front_page() && $op == 'load') {
+        drupal_set_breadcrumb(array());
+      }
+      break;
+  }
+}
+
+/**
+  * Implementation of hook_init() 
+  */
+function the_hook_init() {
+  global $user;
+  $query = array('destination' => 'th');
+  if($user->uid == NULL && arg(0) != 'front_page') {
+    drupal_goto('front_page', $query);
+  }
+}
+

@@ -1,0 +1,9 @@
+; $Id$
+name = Source Sieve The Hook 
+description = many hooks for sourcesieve 
+core = 6.x
+version = 6.x-1.0 beta
+dependencies[] = comment
+package = "CSTU"
+php = 5.2
+
