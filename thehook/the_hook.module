@@ -305,13 +305,11 @@ function evaluation_list() {
       else {
         $tmp[] = t('Result'). $teacher_opt . "";
       }
-
       $nid_list[] = $node->nid;
     }
     else {
-     //$tmp[] = 'null';
       drupal_set_message($node->nid);
-     continue;
+      continue;
     }
     $rows[] = $tmp;
   }
@@ -342,8 +340,29 @@ function examine_homework($node) {
   return $output;
 }
 
+function create_inspection_file_list($nid) {
+  drupal_set_message("In FUnction", "warning");
+  $dir = opendir(file_create_path($nid));
+
+  $student_files_path = '';
+  $student_files_path .= $inspection_bits. "\n";
+
+  while (($file = readdir($dir)) !== false) {
+    if ( $file != "." && $file != ".." && $file != $ss_file_list)  {
+      drupal_set_message("filename: " . file_create_path($nid.'/'.$file) . "<br />");
+      $student_files_path .= file_create_path($nid.'/'.$file). "\n";
+    }
+  }
+
+  closedir($dir);
+
+  $saved = file_save_data($student_files, $nid.'/'. $ss_file_list, FILE_EXISTS_REPLACE);
+
+}
+
 function inspection_condition_submit($form, &$form_state) {
   $ss = get_ss_convention();
+  $nid = arg(1);
 
   $serialize = serialize($form);
   $structural_options = $form['structural']['options']['#options'];
@@ -367,23 +386,9 @@ function inspection_condition_submit($form, &$form_state) {
     }
   }
 
-  $dir = opendir(file_create_path(arg(1)));
-
-
-  $student_files_path = '';
-  $student_files_path .= $inspection_bits. "\n";
-
-  while (($file = readdir($dir)) !== false) {
-    if ( $file != "." && $file != ".." && $file != $ss_file_list)  {
-      drupal_set_message("filename: " . file_create_path(arg(1).'/'.$file) . "<br />");
-      $student_files_path .= file_create_path(arg(1).'/'.$file). "\n";
-    }
-  }
-
-  closedir($dir);
-
-  $saved = file_save_data($student_files, arg(1).'/'. $ss_file_list, FILE_EXISTS_REPLACE);
-  variable_set('hw_'. arg(1), $serialize);
+  variable_set('ss_inspection_bits_'. $nid, $inspection_bits);
+  create_inspection_file_list($nid);
+  variable_set('hw_'. $nid, $serialize);
   drupal_goto('evaluation/list');
   return '';
 }
@@ -450,7 +455,7 @@ function examine_homework_access() {
 function the_hook_views_pre_render(&$view) {
   switch($view->name) {
     case 'file_in_hw':
-      if(arg(2) == 'list') {
+      if (arg(2) == 'list') {
         $php_code = "<?php echo l(t('Inspect!'), 'examine/'. arg(1)); ?>";
         $view->display_handler->set_option('header', "<div class='inspect-homework-views margin-bottom-10'>$php_code</div>");
         $view->display_handler->set_option('header_format', '3');
@@ -460,11 +465,11 @@ function the_hook_views_pre_render(&$view) {
     case 'student_dl_homework':
       global $user;
 
-      if(!arg(1)) {
+      if (!arg(1)) {
         drupal_goto('student_download_homework/'. $user->uid);
       }
 
-      if(!user_access('create homework content') && (arg(1) != $user->uid) ) {
+      if (!user_access('create homework content') && (arg(1) != $user->uid) ) {
         drupal_access_denied();
       }
      break;
@@ -485,7 +490,7 @@ function the_hook_form_alter(&$form, &$form_state, $form_id) {
       profile_load_profile($user);
       $form['attachments']['#collapsed'] = FALSE;
       $form['attachments']['#required'] = TRUE;
-      if(arg(1) == 'add' || arg(2) == 'edit') {
+      if (arg(1) == 'add' || arg(2) == 'edit') {
         $stu_id = $user->profile_student_id;
         $form['title']['#default_value'] = $stu_id? $stu_id : 'undefined';
         $form['title']['#disabled'] = TRUE;
@@ -507,18 +512,18 @@ function the_hook_form_alter(&$form, &$form_state, $form_id) {
   *  Implementation of hook_link_alter
   */
 function the_hook_link_alter(&$links, $node, $comment=NULL) {
-  if($node->type=="homework") {
+  if ($node->type=="homework") {
     global $user;
     $u = user_load(array('uid' => $comment->uid));
     profile_load_profile($u);
-    if($u->profile_student_id != "-") {
+    if ($u->profile_student_id != "-") {
       $tmp_name = $comment->name;
       $comment->name = $u->profile_student_id;
       $comment->name .= " ($tmp_name)";
     }
 
-    if(!$comment->cid) {
-      if(user_access('create homework content')) {
+    if (!$comment->cid) {
+      if (user_access('create homework content')) {
         $links['list_students'] =  array(
                             'title' => t('Submitted Students'),
                             'href' => 'hwfiles/'. $node->nid. '/list',
@@ -526,7 +531,7 @@ function the_hook_link_alter(&$links, $node, $comment=NULL) {
       }
 
       $fetched = submitted_count($node->nid, $user->uid);
-      if($fetched->count !== NULL) {
+      if ($fetched->count !== NULL) {
         $links['my_homework'] =  array(
                             'title' => t('My Homework'),
                             'href' => 'node/'. $fetched->nid,
@@ -554,26 +559,26 @@ function the_hook_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
   switch($node->type) {
     case "submission":
       profile_load_profile($user);
-      if($op == "load") {
+      if ($op == "load") {
         //drupal_set_message('<pre> UID = '. print_r($node->uid, 1) . '</pre>');
         //drupal_set_message('<pre> CUID = '. print_r($user->uid, 1) . '</pre>');
-        if( !('create homework content')  && $node->uid != $user->uid) {
+        if ( !('create homework content')  && $node->uid != $user->uid) {
           drupal_set_message(t('Viewing other submission'), 'error');
           //drupal_access_denied() ;
           //exit();
         }
       }
 
-      if($op == "presave" && $user->profile_student_id) {
+      if ($op == "presave" && $user->profile_student_id) {
         $node->title = $user->profile_student_id;
       }
-      else if(!$user->profile_student_id && ($op == "presave" || $op == "prepare") ) {
+      else if (!$user->profile_student_id && ($op == "presave" || $op == "prepare") ) {
         drupal_set_message(t('undefined student id'), 'warning');
         $node->title = 'undefined';
       }
-      else if($op == "prepare") {
+      else if ($op == "prepare") {
         $fetched = submitted_count(arg(3), $user->uid);
-        if($fetched->count!==NULL) {
+        if ($fetched->count!==NULL) {
           drupal_set_message(t('Already submitted, Edit instead'), 'warning');
           unset($_REQUEST['destination']);
           $next = 'node/'.$fetched->nid.'/edit';
@@ -583,7 +588,7 @@ function the_hook_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
       }
       break;
     case "homework":
-      if(drupal_is_front_page() && $op == 'load') {
+      if (drupal_is_front_page() && $op == 'load') {
         drupal_set_breadcrumb(array());
       }
       break;
@@ -596,7 +601,7 @@ function the_hook_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
 function the_hook_init() {
   global $user;
   $query = array('destination' => 'th');
-  if($user->uid == NULL && arg(0) != 'front_page') {
+  if ($user->uid == NULL && arg(0) != 'front_page') {
     //drupal_goto('front_page', $query);
   }
 }
