@@ -153,7 +153,6 @@ function evaluation_options($nid) {
      $detail = variable_get('hw_'.$nid, NULL);
      if ($detail != NULL) {
        $unserialized = unserialize($detail);
-       //drupal_set_message('<pre>'. print_r(unserialize($detail), 1) . '</pre>');
      }
   }
   $form_id = 'inspection_condition';
@@ -171,6 +170,7 @@ function evaluation_delete($nid) {
   if (user_access('create homework content')) {
      $delete_path = file_directory_path(). '/' . arg(2) . '/'. $ss_file_list;
      unlink($delete_path);
+     variable_del('ss_inspection_bits_'. $nid);
      variable_set('hw_'.$nid, NULL);
      drupal_set_message($nid. t('Deleted'));
      drupal_goto('evaluation/list');
@@ -341,33 +341,34 @@ function examine_homework($node) {
 }
 
 function create_inspection_file_list($nid) {
-  drupal_set_message("In FUnction". variable_get('ss_inspection_bits_'. $nid, 'NULL'), "warning");
+  $inspection_bits = variable_get('ss_inspection_bits_'. $nid, 'NULL');
+
+  drupal_set_message("In FUnction ". $inspection_bits, "warning");
 
   $ss = get_ss_convention();
   $ss_file_list = $ss["file_list"];
   $ss_hw_list = $ss["homework_list"];
-
+  $path = get_convention_path($nid, get_ss_convention());
   $dir = opendir(file_create_path($nid));
   $student_files_path = '';
   $student_files_path .= $inspection_bits. "\n";
 
   while (($file = readdir($dir)) !== false) {
     if ( $file != "." && $file != ".." && $file != $ss_file_list)  {
-      drupal_set_message("filename: " . file_create_path($nid.'/'.$file) . "<br />");
+      drupal_set_message("file: " . file_create_path($nid.'/'.$file) . "<br />");
       $student_files_path .= file_create_path($nid.'/'.$file). "\n";
     }
   }
 
   closedir($dir);
-
-  $saved = file_save_data($student_files, $nid.'/'. $ss_file_list, FILE_EXISTS_REPLACE);
+  $saved = file_save_data($student_files_path, $nid.'/'. $ss['file_list'], FILE_EXISTS_REPLACE);
 
 }
 
 function inspection_condition_submit($form, &$form_state) {
   $nid = arg(1);
 
-  $serialize = serialize($form);
+  $serialized_form = serialize($form);
   $structural_options = $form['structural']['options']['#options'];
   $algorithm_options = $form['algorithm']['options']['#options'];
   $inspection_bits = "";
@@ -375,21 +376,23 @@ function inspection_condition_submit($form, &$form_state) {
 
   foreach ($form['structural']['options'] as $key => $option) {
     if (in_array($key, array_keys($structural_options))) {
-      $bit=  ($option['#value']) ? '1': '0';
+      $bit =  ($option['#value']) ? '1': '0';
       $inspection_bits .= $bit;
     }
   }
 
   foreach ($form['algorithm']['options'] as $key => $option) {
     if (in_array($key, array_keys($algorithm_options))) {
-      $bit=  ($option['#value']) ? '1': '0';
+      $bit =  ($option['#value']) ? '1': '0';
       $inspection_bits .= $bit;
     }
   }
 
   variable_set('ss_inspection_bits_'. $nid, $inspection_bits);
+
   create_inspection_file_list($nid);
-  variable_set('hw_'. $nid, $serialize);
+
+  variable_set('hw_'. $nid, $serialized_form);
   drupal_goto('evaluation/list');
   return '';
 }
@@ -437,8 +440,6 @@ function inspection_condition($form_state) {
     '#description' => t('Sieve engine will use conditions above to compute similarity.'),
   );
  $form['submit'] = array('#type' => 'submit', '#value' => t('Inspect'));
- //$form['#submit'][] = 'system_settings_form_submit';
-//  $form['#theme'] = 'system_settings_form'
 
  return $form;
 }
