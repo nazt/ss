@@ -335,7 +335,7 @@ function evaluation_list() {
     $rows[] = $tmp;
   }
 
-  _save_assignment_list($cpath['homework_list'], $nid_list);
+  _save_assignment_list($cpath['homework_list_path'], $nid_list);
   return theme('table', $header, $rows);
 }
 
