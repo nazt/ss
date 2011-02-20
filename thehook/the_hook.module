@@ -20,8 +20,9 @@ function the_hook_menu() {
     'description' => t('Evaluation List of homework'),
     'page callback' => 'evaluation_list',
     'page arguments' => array(1),
-    'access callback' => 'examine_homework_access',
+    'access callback' => 'similarity_report_access',
     'type' => MENU_CALLBACK,
+
   );
 
   $items['evaluation/delete/%'] = array(
@@ -82,7 +83,7 @@ function evaluation_result($nid) {
   $rows = array();
   $tmp[] = "90% - 100%";
   $tmp[] = "27";
-  $tmp[] = "##";
+  $tmp[] = "####";
   $rows[] = $tmp;
 
   $tmp = array();
@@ -100,19 +101,19 @@ function evaluation_result($nid) {
   $tmp = array();
   $tmp[] = "60% - 70%";
   $tmp[] = "13";
-  $tmp[] = "#";
+  $tmp[] = "##";
   $rows[] = $tmp;
 
   $tmp = array();
   $tmp[] = "50% - 60%";
   $tmp[] = "14";
-  $tmp[] = "#";
+  $tmp[] = "##";
   $rows[] = $tmp;
 
   $tmp = array();
   $tmp[] = "40% - 50%";
   $tmp[] = "24";
-  $tmp[] = "##";
+  $tmp[] = "###";
   $rows[] = $tmp;
 
   $tmp = array();
@@ -147,6 +148,23 @@ function evaluation_result($nid) {
         array('4', "10%", "40%",   "10%", "-"),
       );
 
+  $file_to_nid_path = file_create_path($nid);
+  $result_directory = $file_to_nid_path . '/'. 'result';
+  $sc_files = file_scan_directory($result_directory, ".*");
+
+  //array('attributes' => array('class' => 'link', 'target' => '_blank' ));
+  drupal_set_message(t('Evaluation Result'));
+  $attr = array('class' => 'link', 'target' => '_blank' );
+  foreach ($sc_files as $key => $object) {
+    //$file_name_path = file_create_path($object->filename);
+    //drupal_set_message(print_r($file_name_path, 1));
+    $r_file = explode("_", $object->name);
+    $text = $r_file[1] . ' ' . t('With'). ' '. $r_file[2];
+    $path = base_path() . $object->filename;
+    $link = sprintf("<a href = '%s' target='_blank'>%s</a>", $path, $text);
+    drupal_set_message($link);
+  }
+
   $ret = t('Summary')
         .theme('table', $header, $rows)
         .l(t('Export to CSV'), 'export/'.$nid.'/csv')
@@ -180,16 +198,21 @@ function evaluation_delete($nid) {
 
   foreach ($sc_files as $key => $object) {
     if (unlink($object->filename)) {
-      drupal_set_message($object->filename . ' has been deleted');
+      drupal_set_message($object->basename. ' has been deleted');
     }
   }
 
   $ss = get_ss_convention();
   $ss_file_list = $ss["file_list"];
 
+  $file = get_convention_path($nid, $ss);
   if (user_access('create homework content')) {
-     $delete_path = file_directory_path(). '/' . arg(2) . '/'. $ss_file_list;
-     unlink($delete_path);
+     $file_list_path =  $file['file_list_path'];
+     $result_path = $file['result_path'] ;
+     $processing_path = $file['processing_path'] ;
+     unlink($file_list_path);
+     @unlink($result_path);
+     @unlink($processing_path);
      variable_del('ss_inspection_bits_'. $nid);
      variable_set('hw_'.$nid, NULL);
      drupal_set_message($nid. ' ' . t('has been') . ' ' .t('Deleted'));
@@ -531,6 +554,10 @@ function inspection_condition($form_state) {
   */
 function examine_homework_access() {
   return TRUE;
+}
+
+function similarity_report_access() {
+  return user_access('create homework content') || user_access('create submission content');
 }
 
 /**
