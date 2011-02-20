@@ -1,6 +1,7 @@
 <?php
 //include(drupal_get_path('module', 'node'). '/node.pages.inc');
 module_load_include('inc', 'node', 'node.pages');
+
 /**
   * Implementation of hook_menu().
   */
@@ -173,6 +174,16 @@ function evaluation_options($nid) {
 }
 
 function evaluation_delete($nid) {
+  $file_to_nid_path = file_create_path($nid);
+  $result_directory = $file_to_nid_path . '/'. 'result';
+  $sc_files = file_scan_directory($result_directory, ".*");
+
+  foreach ($sc_files as $key => $object) {
+    if (unlink($object->filename)) {
+      drupal_set_message($object->filename . ' has been deleted');
+    }
+  }
+
   $ss = get_ss_convention();
   $ss_file_list = $ss["file_list"];
 
@@ -181,7 +192,7 @@ function evaluation_delete($nid) {
      unlink($delete_path);
      variable_del('ss_inspection_bits_'. $nid);
      variable_set('hw_'.$nid, NULL);
-     drupal_set_message($nid. t('Deleted'));
+     drupal_set_message($nid. ' ' . t('has been') . ' ' .t('Deleted'));
      drupal_goto('evaluation/list');
   }
   return '';
@@ -329,7 +340,7 @@ function evaluation_list() {
       $nid_list[] = $node->nid;
     }
     else {
-      drupal_set_message($node->nid);
+      //drupal_set_message($node->nid);
       continue;
     }
     $rows[] = $tmp;
@@ -398,6 +409,7 @@ function re_inspection($nid) {
   }
   return ''. 're inspection '. $inspection_bits;
 }
+
 function create_inspection_file_list($nid) {
   $inspection_bits = variable_get('ss_inspection_bits_'. $nid, 'NULL');
 
@@ -409,16 +421,27 @@ function create_inspection_file_list($nid) {
   $student_files_path = '';
   $student_files_path .= $inspection_bits. "\n";
 
+  $file_to_nid_path = file_create_path($nid);
+
+  $result_directory = $file_to_nid_path . '/'. 'result';
+  file_check_directory($result_directory, FILE_CREATE_DIRECTORY);
   while (($file = readdir($dir)) !== false) {
     $file_ext = explode(".", $file);
     if ( $file != "." && $file != ".." && in_array($file_ext[1], get_allow_extension()) )  {
-      drupal_set_message("file: " . file_create_path($nid.'/'.$file) . "<br />");
-      drupal_set_message(print_r($file_ext, 1));
-      $student_files_path .= file_create_path($nid.'/'.$file). "\n";
+      //drupal_set_message("file: " . file_create_path($nid.'/'.$file) . "<br />");
+      //drupal_set_message(print_r($file_ext, 1));
+      $std_info = explode("_", $file);
+      //drupal_set_message("<pre>". print_r($std_info, 1). "</pre>");
+      $student_files_path .= $file_to_nid_path . "\n";
+      $student_files_path .= $std_info[0]. "\n";
+      $student_files_path .= $std_info[1]. "\n";
+      //drupal_set_message("<pre>". print_r($student_files_path, 1). "</pre>");
+
     }
   }
 
   closedir($dir);
+  $student_files_path = str_replace("/", "\\", $student_files_path);
   $saved = file_save_data($student_files_path, $nid.'/'. $ss['file_list'], FILE_EXISTS_REPLACE);
 
 }
@@ -454,6 +477,7 @@ function inspection_condition_submit($form, &$form_state) {
   drupal_goto('evaluation/list');
   return '';
 }
+
 /**
   *  implementation of evaluation form using drupal form api
   */
@@ -634,6 +658,7 @@ function the_hook_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
       }
       else if (!$user->profile_student_id && ($op == "presave" || $op == "prepare") ) {
         drupal_set_message(t('undefined student id'), 'warning');
+        $user->profile_student_id = '1111';
         $node->title = 'undefined';
       }
       else if ($op == "prepare") {
