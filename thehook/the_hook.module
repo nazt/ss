@@ -403,7 +403,6 @@ function re_inspection($nid) {
     else {
         drupal_set_message(t('Re inspect from waiting.'), 'warning');
     }
-    drupal_set_message($inspection_bits);
     create_inspection_file_list($nid);
     drupal_goto('evaluation/list');
   }
@@ -423,8 +422,9 @@ function create_inspection_file_list($nid) {
 
   $file_to_nid_path = file_create_path($nid);
 
-  $result_directory = $file_to_nid_path . '/'. 'result';
+  $result_directory = file_create_path ($nid. '/'. 'result');
   file_check_directory($result_directory, FILE_CREATE_DIRECTORY);
+
   while (($file = readdir($dir)) !== false) {
     $file_ext = explode(".", $file);
     if ( $file != "." && $file != ".." && in_array($file_ext[1], get_allow_extension()) )  {
@@ -432,7 +432,7 @@ function create_inspection_file_list($nid) {
       //drupal_set_message(print_r($file_ext, 1));
       $std_info = explode("_", $file);
       //drupal_set_message("<pre>". print_r($std_info, 1). "</pre>");
-      $student_files_path .= $file_to_nid_path . "\n";
+      $student_files_path .= file_create_path($nid. '/'. $file) . "\n";
       $student_files_path .= $std_info[0]. "\n";
       $student_files_path .= $std_info[1]. "\n";
       //drupal_set_message("<pre>". print_r($student_files_path, 1). "</pre>");
